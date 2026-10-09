@@ -74,4 +74,81 @@ describe("My Token", () => {
       ).to.be.revertedWith("insufficient balance");
     });
   });
+
+  describe("TransferFrom", () => {
+    it("should emit Approval event", async () => {
+      const signer0 = signers[0];
+      const signer1 = signers[1];
+      const amount = hre.ethers.parseUnits("10", decimals);
+      await expect(myTokenC.approve(signer1.address, amount))
+        .to.emit(myTokenC, "Approval")
+        .withArgs(signer1.address, amount);
+      expect(await myTokenC.allowance(signer0.address, signer1.address)).equal(
+        amount,
+      );
+    });
+
+    it("should be reverted with insufficient allowance error", async () => {
+      const signer0 = signers[0];
+      const signer1 = signers[1];
+      await expect(
+        myTokenC
+          .connect(signer1)
+          .transferFrom(
+            signer0.address,
+            signer1.address,
+            hre.ethers.parseUnits("1", decimals),
+          ),
+      ).to.be.revertedWith("insufficient allowance");
+      expect(await myTokenC.balanceOf(signer0.address)).equal(
+        mintingAmount * 10n ** decimals,
+      );
+      expect(await myTokenC.balanceOf(signer1.address)).equal(0n);
+    });
+
+    it("should be reverted when exceeding the allowance", async () => {
+      const signer0 = signers[0];
+      const signer1 = signers[1];
+      const allowed = hre.ethers.parseUnits("1", decimals);
+      await myTokenC.approve(signer1.address, allowed);
+      await expect(
+        myTokenC
+          .connect(signer1)
+          .transferFrom(signer0.address, signer1.address, allowed + 1n),
+      ).to.be.revertedWith("insufficient allowance");
+      expect(await myTokenC.allowance(signer0.address, signer1.address)).equal(
+        allowed,
+      );
+      expect(await myTokenC.balanceOf(signer1.address)).equal(0n);
+    });
+
+    it("should move signer0's MT to signer1 by transferFrom", async () => {
+      const signer0 = signers[0];
+      const signer1 = signers[1];
+      const amount = hre.ethers.parseUnits("10", decimals);
+
+      // 1. approve
+      await expect(myTokenC.connect(signer0).approve(signer1.address, amount))
+        .to.emit(myTokenC, "Approval")
+        .withArgs(signer1.address, amount);
+
+      // 2. transferFrom
+      await expect(
+        myTokenC
+          .connect(signer1)
+          .transferFrom(signer0.address, signer1.address, amount),
+      )
+        .to.emit(myTokenC, "Transfer")
+        .withArgs(signer0.address, signer1.address, amount);
+
+      // 3. check balance
+      expect(await myTokenC.balanceOf(signer0.address)).equal(
+        mintingAmount * 10n ** decimals - amount,
+      );
+      expect(await myTokenC.balanceOf(signer1.address)).equal(amount);
+      expect(await myTokenC.allowance(signer0.address, signer1.address)).equal(
+        0n,
+      );
+    });
+  });
 });
