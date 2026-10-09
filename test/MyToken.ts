@@ -3,6 +3,7 @@ import { expect } from "chai";
 import { MyToken } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
+const mintingAmount = 100n;
 const decimals = 18n;
 
 describe("My Token", () => {
@@ -14,6 +15,7 @@ describe("My Token", () => {
       "MyToken",
       "MT",
       decimals,
+      mintingAmount,
     ]);
   });
   describe("Basic state value check", () => {
@@ -26,8 +28,19 @@ describe("My Token", () => {
     it("should return decimals", async () => {
       expect(await myTokenC.decimals()).equal(decimals);
     });
-    it("should return 0 totalSupply", async () => {
-      expect(await myTokenC.totalSupply()).equal(0n);
+    it("should return 100MT totalSupply", async () => {
+      expect(await myTokenC.totalSupply()).equal(
+        mintingAmount * 10n ** decimals,
+      );
+    });
+  });
+
+  describe("Mint", () => {
+    it("should return 100MT balance for signer 0", async () => {
+      const signer0 = signers[0];
+      expect(await myTokenC.balanceOf(signer0)).equal(
+        mintingAmount * 10n ** decimals,
+      );
     });
   });
 });
