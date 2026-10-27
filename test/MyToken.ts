@@ -42,6 +42,14 @@ describe("My Token", () => {
         mintingAmount * 10n ** decimals,
       );
     });
+    it("should revert when a non-manager mints", async () => {
+      const hacker = signers[2];
+      await expect(
+        myTokenC
+          .connect(hacker)
+          .mint(hre.ethers.parseUnits("10000", decimals), hacker.address),
+      ).to.be.revertedWith("You are not authorized to manage this contract");
+    });
   });
 
   describe("Transfer", () => {
