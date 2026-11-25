@@ -85,6 +85,62 @@ describe("TinyBank", () => {
     });
   });
 
+  describe("Current reward", () => {
+    it("should return the staking token address", async () => {
+      expect(await tinyBankC.stakingToken()).equal(await myTokenC.getAddress());
+    });
+
+    it("should return 0 after withdrawing every staked token", async () => {
+      const signer0 = signers[0];
+      const stakingAmount = hre.ethers.parseUnits("50", DECIMALS);
+      await myTokenC.approve(await tinyBankC.getAddress(), stakingAmount);
+      await tinyBankC.stake(stakingAmount);
+      await myTokenC.transfer(1n, signer0.address);
+      await tinyBankC.withdraw(stakingAmount);
+      expect(await tinyBankC.currentReward(signer0.address)).equal(0);
+    });
+    it("should return 0 for an address without stake", async () => {
+      expect(await tinyBankC.currentReward(signers[1].address)).equal(0);
+    });
+
+    it("should return the reward that withdraw would mint", async () => {
+      const signer0 = signers[0];
+      const stakingAmount = hre.ethers.parseUnits("50", DECIMALS);
+      await myTokenC.approve(await tinyBankC.getAddress(), stakingAmount);
+      await tinyBankC.stake(stakingAmount);
+
+      const BLOCKS = 5n;
+      const transferAmount = hre.ethers.parseUnits("1", DECIMALS);
+      for (let i = 0; i < BLOCKS; i++) {
+        await myTokenC.transfer(transferAmount, signer0.address);
+      }
+
+      expect(await tinyBankC.currentReward(signer0.address)).equal(
+        hre.ethers.parseUnits(BLOCKS.toString(), DECIMALS),
+      );
+    });
+
+    it("should split the reward by stake share", async () => {
+      const [signer0, signer1] = signers;
+      const amount0 = hre.ethers.parseUnits("30", DECIMALS);
+      const amount1 = hre.ethers.parseUnits("10", DECIMALS);
+      await myTokenC.transfer(amount1, signer1.address);
+      await myTokenC.approve(await tinyBankC.getAddress(), amount0);
+      await tinyBankC.stake(amount0);
+      await myTokenC
+        .connect(signer1)
+        .approve(await tinyBankC.getAddress(), amount1);
+      await tinyBankC.connect(signer1).stake(amount1);
+
+      await myTokenC.transfer(1n, signer0.address);
+
+      const rewardPerBlock = await tinyBankC.rewardPerBlock();
+      expect(await tinyBankC.currentReward(signer1.address)).equal(
+        (rewardPerBlock * amount1) / (amount0 + amount1),
+      );
+    });
+  });
+
   describe("Multi Manager", () => {
     const rewardToChange = hre.ethers.parseUnits("10000", DECIMALS);
 

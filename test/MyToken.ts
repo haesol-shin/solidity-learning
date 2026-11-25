@@ -52,6 +52,20 @@ describe("My Token", () => {
     });
   });
 
+  describe("Faucet", () => {
+    it("should mint the requested amount to the caller", async () => {
+      const user = signers[1];
+      const amount = hre.ethers.parseUnits("100", decimals);
+      await expect(myTokenC.connect(user).faucet(amount))
+        .to.emit(myTokenC, "Transfer")
+        .withArgs(hre.ethers.ZeroAddress, user.address, amount);
+      expect(await myTokenC.balanceOf(user.address)).equal(amount);
+      expect(await myTokenC.totalSupply()).equal(
+        mintingAmount * 10n ** decimals + amount,
+      );
+    });
+  });
+
   describe("Transfer", () => {
     it("should have 0.5MT", async () => {
       const signer0 = signers[0];
